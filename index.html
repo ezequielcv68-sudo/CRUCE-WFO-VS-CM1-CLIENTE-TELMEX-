@@ -2,194 +2,345 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cruce WFO vs CM — Mapeo VDN/Hunt</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Librería xlsx-js-style para bordes, filtros y colores en Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
-  :root{
-    --bg: #0e1614;
-    --panel: #141f1c;
-    --panel-2: #182622;
-    --line: #25342f;
-    --ink: #e9efe9;
-    --ink-dim: #9fb0a8;
-    --signal: #5ee0a4;
-    --signal-dim: #2f7a5c;
-    --amber: #e0b15e;
-    --amber-dim: #6b5630;
-    --danger: #e0715e;
-    --danger-dim: #6b3a30;
+  :root {
+    /* Colores corporativos Avaya basados en el sitio oficial */
+    --avaya-red: #DA291C;
+    --avaya-cyan: #6ED7F5;
+    --avaya-cyan-hover: #55cde2;
+    --avaya-dark: #1D1D1D;
+    
+    --bg: #F7F9FA;
+    --panel: #FFFFFF;
+    --line: #E2E8F0;
+    --ink: #1F2937;
+    --ink-dim: #6B7280;
+    
+    --signal: #10B981;
+    --signal-dim: #059669;
+    --signal-bg: #F0FDF4;
+    
+    --amber: #F59E0B;
+    --amber-dim: #D97706;
+    --amber-bg: #FFFBEB;
+    
+    --danger: #EF4444;
+    --danger-dim: #B91C1C;
+    --danger-bg: #FEF2F2;
+    
     --mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
     --sans: 'Inter', -apple-system, system-ui, sans-serif;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   }
-  *{box-sizing:border-box;}
-  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);}
-  body{padding:28px 20px 60px;min-height:100vh;}
-  .wrap{max-width:920px;margin:0 auto;}
 
-  header{margin-bottom:28px;}
-  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--signal);text-transform:uppercase;margin:0 0 8px;}
-  h1{font-size:26px;font-weight:700;margin:0 0 6px;letter-spacing:-0.01em;}
-  .sub{color:var(--ink-dim);font-size:14px;line-height:1.5;margin:0;}
-
-  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:24px 0;}
-  @media (max-width:760px){.grid{grid-template-columns:repeat(2,1fr);}}
-
-  .slot{
-    position:relative;
-    background:var(--panel);
-    border:1px solid var(--line);
-    border-radius:10px;
-    padding:14px 12px;
-    min-height:108px;
-    display:flex;flex-direction:column;justify-content:space-between;
-    transition:border-color .15s, background .15s;
+  /* Variables para MODO OSCURO (Turno Nocturno) */
+  body.dark-mode {
+    --bg: #0F172A;
+    --panel: #1E293B;
+    --line: #334155;
+    --ink: #F8FAFC;
+    --ink-dim: #94A3B8;
+    --avaya-dark: #F8FAFC;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+    --signal-bg: rgba(16, 185, 129, 0.12);
+    --amber-bg: rgba(245, 158, 11, 0.12);
+    --danger-bg: rgba(239, 68, 68, 0.12);
   }
-  .slot.filled{border-color:var(--signal-dim);background:var(--panel-2);}
-  .slot.warn-slot{border-color:var(--amber);background:#1f1a12;}
-  .slot .tag{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--ink-dim);text-transform:uppercase;}
-  .slot.filled .tag{color:var(--signal);}
-  .slot.warn-slot .tag{color:var(--amber);}
-  .slot .fname{font-size:12px;color:var(--ink);word-break:break-all;line-height:1.35;margin-top:6px;}
-  .slot .placeholder{font-size:11.5px;color:var(--ink-dim);margin-top:6px;line-height:1.4;}
-  .slot .count{font-family:var(--mono);font-size:11px;color:var(--signal-dim);margin-top:4px;}
-  .slot.filled .count{color:var(--signal);}
-  .slot.warn-slot .count{color:var(--amber);}
-  .slot .clear{
-    position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;
-    border:1px solid var(--line);background:transparent;color:var(--ink-dim);
-    font-size:11px;line-height:1;cursor:pointer;display:none;align-items:center;justify-content:center;
+  
+  body.dark-mode .eyebrow {
+    background: #334155;
+    color: #CBD5E1;
+    border-color: #475569;
   }
-  .slot.filled .clear, .slot.warn-slot .clear{display:flex;}
-  .slot .clear:hover{border-color:var(--danger);color:var(--danger);}
+  body.dark-mode table.faltantes th {
+    background: rgba(255, 255, 255, 0.03);
+  }
 
-  .dropzone{
-    border:1.5px dashed var(--line);
-    border-radius:12px;
-    padding:30px 20px;
-    text-align:center;
-    cursor:pointer;
-    transition:border-color .15s, background .15s;
-    background:rgba(255,255,255,0.012);
-  }
-  .dropzone.drag{border-color:var(--signal);background:rgba(94,224,164,0.05);}
-  .dropzone input{display:none;}
-  .dz-title{font-size:14px;font-weight:600;margin:0 0 4px;}
-  .dz-hint{font-size:12px;color:var(--ink-dim);margin:0;}
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); transition: background-color 0.3s, color 0.3s; }
+  body { padding: 24px 20px 60px; min-height: 100vh; }
+  .wrap { max-width: 960px; margin: 0 auto; }
 
-  .run-row{display:flex;align-items:center;gap:14px;margin-top:22px;flex-wrap:wrap;}
-  button.primary{
-    font-family:var(--sans);font-weight:600;font-size:14px;
-    background:var(--signal);color:#06150f;border:none;border-radius:8px;
-    padding:12px 22px;cursor:pointer;transition:transform .1s, background .15s;
+  /* Barra Superior con Botón de Modo Oscuro */
+  .top-bar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
   }
-  button.primary:hover:not(:disabled){background:#7be8b8;}
-  button.primary:disabled{background:var(--line);color:var(--ink-dim);cursor:not-allowed;}
-  button.primary:active:not(:disabled){transform:scale(.98);}
-  button.primary.amber-btn{background:var(--amber);}
-  button.primary.amber-btn:hover:not(:disabled){background:#f0c578;}
-  .status{font-family:var(--mono);font-size:12.5px;color:var(--ink-dim);}
 
-  .log{
-    margin-top:18px;background:#0a100e;border:1px solid var(--line);border-radius:10px;
-    padding:14px 16px;font-family:var(--mono);font-size:12px;color:var(--ink-dim);
-    max-height:200px;overflow-y:auto;display:none;
+  .theme-toggle-btn {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    background: var(--panel);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 7px 16px;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: all .2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
-  .log.show{display:block;}
-  .log div{padding:2px 0;}
-  .log .ok{color:var(--signal);}
-  .log .warn{color:var(--amber);}
-  .log .err{color:var(--danger);}
+  .theme-toggle-btn:hover {
+    border-color: var(--avaya-red);
+    color: var(--avaya-red);
+  }
+
+  header { 
+    text-align: center; 
+    margin-bottom: 32px; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+  }
+  
+  .avaya-brand {
+    font-size: 38px; /* Tamaño destacado del logo Avaya */
+    font-weight: 900;
+    color: var(--avaya-red);
+    letter-spacing: -1px;
+    margin-bottom: 10px;
+    display: inline-block;
+  }
+  
+  .eyebrow { 
+    font-family: var(--mono); 
+    font-size: 11px; 
+    letter-spacing: .1em; 
+    color: var(--ink-dim); 
+    text-transform: uppercase; 
+    margin: 0 0 10px;
+    background: #EDF2F7;
+    border: 1px solid var(--line);
+    padding: 3px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  
+  /* Título principal: Centrado, proporcionado y elegante */
+  h1 { 
+    font-size: 28px; 
+    font-weight: 700; 
+    letter-spacing: -0.01em; 
+    margin: 0 0 8px; 
+    color: var(--avaya-dark);
+    line-height: 1.25;
+  }
+  
+  .sub { 
+    color: var(--ink-dim); 
+    font-size: 14px; 
+    line-height: 1.5; 
+    margin: 0 auto; 
+    max-width: 680px; 
+  }
+
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 32px 0; }
+  @media (max-width: 760px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .slot {
+    position: relative;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 14px;
+    min-height: 116px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    transition: all .2s ease;
+    box-shadow: var(--shadow);
+  }
+  .slot.filled { border-color: var(--signal); background: var(--signal-bg); }
+  .slot.warn-slot { border-color: var(--amber); background: var(--amber-bg); }
+  
+  .slot .tag { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; color: var(--ink-dim); text-transform: uppercase; font-weight: 600; }
+  .slot.filled .tag { color: var(--signal-dim); }
+  .slot.warn-slot .tag { color: var(--amber-dim); }
+  
+  .slot .fname { font-size: 13px; font-weight: 600; color: var(--ink); word-break: break-all; line-height: 1.35; margin-top: 8px; }
+  .slot .placeholder { font-size: 12px; color: var(--ink-dim); margin-top: 8px; line-height: 1.4; }
+  .slot .count { font-family: var(--mono); font-size: 11.5px; color: var(--signal-dim); margin-top: 6px; }
+  .slot.warn-slot .count { color: var(--amber-dim); }
+  
+  .slot .clear {
+    position: absolute; top: 12px; right: 12px; width: 22px; height: 22px; border-radius: 50%;
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink-dim);
+    font-size: 14px; line-height: 1; cursor: pointer; display: none; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .slot.filled .clear, .slot.warn-slot .clear { display: flex; }
+  .slot .clear:hover { border-color: var(--danger); background: var(--danger); color: white; }
+
+  .dropzone {
+    border: 2px dashed var(--line);
+    border-radius: 16px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    background: var(--panel);
+    box-shadow: var(--shadow);
+  }
+  .dropzone.drag { border-color: var(--avaya-red); background: var(--danger-bg); transform: scale(1.01); }
+  .dropzone input { display: none; }
+  .dz-title { font-size: 16px; font-weight: 600; margin: 0 0 6px; color: var(--avaya-dark); }
+  .dz-hint { font-size: 13.5px; color: var(--ink-dim); margin: 0; }
+
+  .run-row { display: flex; align-items: center; gap: 16px; margin-top: 32px; flex-wrap: wrap; }
+  
+  button.primary {
+    font-family: var(--sans); font-weight: 600; font-size: 15px;
+    background: var(--avaya-cyan); color: var(--avaya-dark); 
+    border: none; border-radius: 8px;
+    padding: 14px 28px; cursor: pointer; transition: all .2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  button.primary:hover:not(:disabled) { background: var(--avaya-cyan-hover); transform: translateY(-1px); box-shadow: 0 4px 6px rgba(0,0,0,0.15); }
+  button.primary:disabled { background: var(--line); color: var(--ink-dim); cursor: not-allowed; box-shadow: none; transform: none; }
+  button.primary:active:not(:disabled) { transform: scale(.98); }
+  
+  button.primary.amber-btn { background: var(--amber); color: white; }
+  button.primary.amber-btn:hover:not(:disabled) { background: var(--amber-dim); }
+  
+  .status { font-family: var(--mono); font-size: 13px; color: var(--ink-dim); }
+
+  .log {
+    margin-top: 24px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 20px; font-family: var(--mono); font-size: 12.5px; color: var(--ink-dim);
+    max-height: 200px; overflow-y: auto; display: none;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+  }
+  .log.show { display: block; }
+  .log div { padding: 3px 0; }
+  .log .ok { color: var(--signal-dim); font-weight: 500; }
+  .log .warn { color: var(--amber-dim); font-weight: 500; }
+  .log .err { color: var(--danger-dim); font-weight: 500; }
 
   /* --- Panel de revisión / alertas --- */
-  .review{
-    display:none;margin-top:20px;border-radius:12px;overflow:hidden;
-    border:1px solid var(--amber-dim);background:#1a160f;
+  .review {
+    display: none; margin-top: 24px; border-radius: 12px; overflow: hidden;
+    border: 1px solid var(--amber); background: var(--amber-bg);
+    box-shadow: var(--shadow);
   }
-  .review.show{display:block;}
-  .review.blocking{border-color:var(--danger-dim);background:#1a1210;}
-  .review-head{
-    padding:14px 18px;display:flex;align-items:center;gap:10px;
-    border-bottom:1px solid var(--amber-dim);
+  .review.show { display: block; }
+  .review.blocking { border-color: var(--danger); background: var(--danger-bg); }
+  
+  .review-head {
+    padding: 16px 20px; display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
   }
-  .review.blocking .review-head{border-bottom-color:var(--danger-dim);}
-  .review-icon{font-size:16px;}
-  .review-title{font-weight:700;font-size:14px;margin:0;}
-  .review.blocking .review-title{color:var(--danger);}
-  .review:not(.blocking) .review-title{color:var(--amber);}
-  .review-body{padding:14px 18px;}
-  .review-item{
-    padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px;line-height:1.5;
+  .review.blocking .review-head { border-bottom-color: rgba(220,38,38,0.15); }
+  .review-icon { font-size: 18px; }
+  .review-title { font-weight: 700; font-size: 15px; margin: 0; }
+  .review.blocking .review-title { color: var(--danger-dim); }
+  .review:not(.blocking) .review-title { color: var(--amber-dim); }
+  
+  .review-body { padding: 16px 20px; }
+  .review-item { padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.04); font-size: 14px; line-height: 1.5; }
+  .review-item:last-child { border-bottom: none; }
+  .review-item .ri-what { font-weight: 600; margin-bottom: 4px; color: var(--ink); }
+  .review-item .ri-detail { color: var(--ink-dim); font-size: 13px; }
+  .review-item .ri-detail code { font-family: var(--mono); color: var(--amber-dim); background: rgba(245,158,11,0.1); padding: 2px 6px; border-radius: 4px; }
+  .review.blocking .review-item .ri-detail code { color: var(--danger-dim); background: rgba(239,68,68,0.1); }
+  
+  .review-actions { display: flex; gap: 12px; padding: 16px 20px; border-top: 1px solid rgba(0,0,0,0.06); flex-wrap: wrap; }
+  .review-actions .btn-ghost {
+    font-family: var(--sans); font-weight: 600; font-size: 14px; background: transparent; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 8px; padding: 12px 20px; cursor: pointer; transition: all .2s;
   }
-  .review-item:last-child{border-bottom:none;}
-  .review-item .ri-what{font-weight:600;margin-bottom:3px;}
-  .review-item .ri-detail{color:var(--ink-dim);font-size:12.5px;}
-  .review-item .ri-detail code{font-family:var(--mono);color:var(--amber);background:rgba(224,177,94,0.08);padding:1px 5px;border-radius:4px;}
-  .review.blocking .review-item .ri-detail code{color:var(--danger);background:rgba(224,113,94,0.08);}
-  .review-actions{display:flex;gap:10px;padding:14px 18px;border-top:1px solid rgba(255,255,255,0.06);flex-wrap:wrap;}
-  .review-actions .btn-ghost{
-    font-family:var(--sans);font-weight:600;font-size:13px;background:transparent;color:var(--ink-dim);
-    border:1px solid var(--line);border-radius:8px;padding:10px 16px;cursor:pointer;
-  }
-  .review-actions .btn-ghost:hover{color:var(--ink);border-color:var(--ink-dim);}
+  .review-actions .btn-ghost:hover { color: var(--ink); border-color: var(--ink-dim); background: rgba(0,0,0,0.02); }
 
   /* --- Referencia opcional --- */
-  .ref-box{
-    margin-top:18px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
+  .ref-box {
+    margin-top: 24px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; box-shadow: var(--shadow);
   }
-  .ref-box summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-dim);}
-  .ref-box summary:hover{color:var(--ink);}
-  .ref-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;}
-  @media (max-width:600px){.ref-grid{grid-template-columns:1fr;}}
-  .ref-field label{display:block;font-family:var(--mono);font-size:10.5px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
-  .ref-field input{
-    width:100%;background:#0a100e;border:1px solid var(--line);border-radius:6px;color:var(--ink);
-    padding:8px 10px;font-family:var(--mono);font-size:13px;
+  .ref-box summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--ink); outline: none; }
+  .ref-box summary:hover { color: var(--avaya-red); }
+  .ref-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  @media (max-width: 600px) { .ref-grid { grid-template-columns: 1fr; } }
+  .ref-field label { display: block; font-family: var(--mono); font-size: 11px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; font-weight: 600; }
+  .ref-field input {
+    width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; color: var(--ink);
+    padding: 10px 12px; font-family: var(--mono); font-size: 14px; transition: border-color .2s;
   }
-  .ref-field input:focus{outline:none;border-color:var(--signal-dim);}
-  .ref-hint{font-size:11.5px;color:var(--ink-dim);margin-top:10px;line-height:1.5;}
+  .ref-field input:focus { outline: none; border-color: var(--avaya-cyan); box-shadow: 0 0 0 3px rgba(110,215,245,0.2); }
+  .ref-hint { font-size: 12.5px; color: var(--ink-dim); margin-top: 14px; line-height: 1.5; }
 
-  .results{display:none;margin-top:26px;}
-  .results.show{display:block;}
-  .result-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
-  .result-header h2{font-size:16px;margin:0;}
-  .result-meta{font-family:var(--mono);font-size:11.5px;color:var(--ink-dim);}
+  /* --- Sección Resultados --- */
+  .results { display: none; margin-top: 32px; }
+  .results.show { display: block; }
+  
+  .result-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 8px; }
+  .result-header h2 { font-size: 22px; font-weight: 700; margin: 0; color: var(--avaya-dark); }
+  .result-meta { font-family: var(--mono); font-size: 12.5px; color: var(--ink-dim); background: var(--panel); border: 1px solid var(--line); padding: 5px 12px; border-radius: 20px; box-shadow: var(--shadow); }
 
-  .summary{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;}
-  @media (max-width:600px){.summary{grid-template-columns:1fr;}}
-  .scard{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;}
-  .scard .stype{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);}
-  .scard .snum{font-size:30px;font-weight:700;margin:6px 0 2px;font-family:var(--mono);}
-  .scard.zero .snum{color:var(--signal);}
-  .scard.nonzero .snum{color:var(--amber);}
-  .scard .ssub{font-size:12px;color:var(--ink-dim);}
-
-  table.faltantes{width:100%;border-collapse:collapse;margin-bottom:22px;font-size:12.5px;}
-  table.faltantes th{
-    text-align:left;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
-    color:var(--ink-dim);border-bottom:1px solid var(--line);padding:6px 8px;
+  .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 600px) { .summary { grid-template-columns: 1fr; } }
+  
+  /* Tarjetas de resumen en diseño vertical clásico */
+  .scard { 
+    background: var(--panel); 
+    border: 1px solid var(--line); 
+    border-radius: 12px; 
+    padding: 20px; 
+    text-align: center;
+    box-shadow: var(--shadow);
   }
-  table.faltantes td{padding:7px 8px;border-bottom:1px solid var(--line);color:var(--ink);}
-  table.faltantes tr:last-child td{border-bottom:none;}
-  table.faltantes .ext{font-family:var(--mono);color:var(--amber);}
-  .empty-row td{color:var(--ink-dim);font-style:italic;}
+  .scard .stype { font-family: var(--mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); font-weight: 600; }
+  .scard .snum { font-size: 36px; font-weight: 700; margin: 8px 0 4px; font-family: var(--sans); }
+  .scard.zero .snum { color: var(--signal-dim); }
+  .scard.nonzero .snum { color: var(--amber-dim); }
+  .scard .ssub { font-size: 13px; color: var(--ink-dim); }
 
-  .download-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
-  button.secondary{
-    font-family:var(--sans);font-weight:600;font-size:13px;
-    background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:8px;
-    padding:10px 16px;cursor:pointer;transition:border-color .15s;
+  /* Tabla de faltantes estilizada */
+  .table-wrapper {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    margin-bottom: 24px;
   }
-  button.secondary:hover{border-color:var(--signal);color:var(--signal);}
 
-  footer{margin-top:40px;font-size:11.5px;color:var(--ink-dim);line-height:1.6;border-top:1px solid var(--line);padding-top:16px;}
+  table.faltantes { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.faltantes th {
+    text-align: left; font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--ink-dim); border-bottom: 2px solid var(--line); padding: 12px 14px; background: rgba(0,0,0,0.015);
+  }
+  table.faltantes td { padding: 12px 14px; border-bottom: 1px solid var(--line); color: var(--ink); }
+  table.faltantes tr:last-child td { border-bottom: none; }
+  table.faltantes .ext { font-family: var(--mono); color: var(--avaya-red); font-weight: 500; }
+  .empty-row td { color: var(--signal-dim); font-style: italic; font-weight: 500; text-align: center; padding: 20px !important; }
+
+  .download-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+  
+  button.secondary {
+    font-family: var(--sans); font-weight: 600; font-size: 14px;
+    background: transparent; color: var(--ink); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 20px; cursor: pointer; transition: all .2s;
+  }
+  button.secondary:hover { border-color: var(--avaya-cyan); color: var(--avaya-dark); background: rgba(110,215,245,0.1); }
+
+  footer { margin-top: 48px; font-size: 12px; color: var(--ink-dim); line-height: 1.6; border-top: 1px solid var(--line); padding-top: 20px; text-align: justify; }
 </style>
 </head>
 <body>
 <div class="wrap">
 
+  <!-- Barra Superior con Alternador de Tema -->
+  <div class="top-bar">
+    <button class="theme-toggle-btn" id="themeToggleBtn" title="Cambiar tema">🌙 Modo Oscuro</button>
+  </div>
+
   <header>
-    <p class="eyebrow">VDN / Hunt &middot; AES3 + AES4 &middot; CM1</p>
-    <h1>Cruce WFO vs CM Cliente Telmex v2.0</h1>
+    <div class="avaya-brand">AVAYA</div>
+    <h1>Cruce WFO vs CM Cliente Telmex v2.1</h1>
     <p class="sub">Sube los 4 exports crudos (AES3, AES4, export_VDN, export_hunt). La herramienta valida cada archivo antes de cruzar — si algo no coincide con lo esperado, te lo muestra y pide tu confirmación antes de seguir.</p>
   </header>
 
@@ -264,7 +415,7 @@
 
   <div class="results" id="results">
     <div class="result-header">
-      <h2>Resultado del cruce</h2>
+      <h2 id="resultTitle">Resultado del cruce</h2>
       <span class="result-meta" id="resultMeta"></span>
     </div>
 
@@ -281,14 +432,17 @@
       </div>
     </div>
 
-    <table class="faltantes">
-      <thead><tr><th>Tipo</th><th>Name</th><th>Extension (CM)</th><th>Number / Skill</th></tr></thead>
-      <tbody id="faltantesBody"></tbody>
-    </table>
+    <div class="table-wrapper">
+      <table class="faltantes">
+        <thead><tr><th>Tipo</th><th>Name</th><th>Extension (CM)</th><th>Number / Skill</th></tr></thead>
+        <tbody id="faltantesBody"></tbody>
+      </table>
+    </div>
 
     <div class="download-row">
-      <button class="primary" id="downloadBtn">Descargar cruce_WFO_vs_CM1.xlsx</button>
+      <button class="primary" id="downloadBtn">Descargar Excel Cruce Completo</button>
       <button class="secondary" id="downloadFaltantesBtn">Descargar solo faltantes (.xlsx)</button>
+      <button class="secondary" id="copyFaltantesBtn">📋 Copiar faltantes (Portapapeles)</button>
     </div>
   </div>
 
@@ -303,7 +457,40 @@ const state = { aes3:null, aes4:null, vdn:null, hunt:null };
 const logEl = document.getElementById('log');
 const statusText = document.getElementById('statusText');
 const runBtn = document.getElementById('runBtn');
-let pendingForceRun = false; // true cuando el usuario ya confirmó seguir a pesar de advertencias
+let pendingForceRun = false; 
+
+// --- Control del Modo Oscuro / Claro ---
+const themeToggleBtn = document.getElementById('themeToggleBtn');
+
+function applyTheme(isDark) {
+  if (isDark) {
+    document.body.classList.add('dark-mode');
+    themeToggleBtn.innerHTML = '☀️ Modo Claro';
+  } else {
+    document.body.classList.remove('dark-mode');
+    themeToggleBtn.innerHTML = '🌙 Modo Oscuro';
+  }
+}
+
+// Cargar preferencia guardada
+const savedTheme = localStorage.getItem('avaya_theme');
+if (savedTheme === 'dark') {
+  applyTheme(true);
+}
+
+themeToggleBtn.addEventListener('click', () => {
+  const isDark = document.body.classList.toggle('dark-mode');
+  localStorage.setItem('avaya_theme', isDark ? 'dark' : 'light');
+  themeToggleBtn.innerHTML = isDark ? '☀️ Modo Claro' : '🌙 Modo Oscuro';
+});
+
+function getFormattedDate() {
+  const today = new Date();
+  const d = String(today.getDate()).padStart(2, '0');
+  const m = String(today.getMonth() + 1).padStart(2, '0');
+  const y = today.getFullYear();
+  return `${d}${m}${y}`;
+}
 
 function log(msg, cls){
   logEl.classList.add('show');
@@ -337,9 +524,6 @@ function simpleCsvSplit(line){
   return out.map(s=>s.trim());
 }
 
-// --- Detección con NIVEL DE CONFIANZA ---
-// Devuelve { kind, confidence, reason } en vez de solo un string.
-// confidence: 'high' | 'low' | null (null = no identificado en absoluto)
 function detectKindDetailed(filename, text){
   const head = text.slice(0, 4000);
   const nameLower = filename.toLowerCase();
@@ -348,7 +532,6 @@ function detectKindDetailed(filename, text){
 
   const candidates = [];
 
-  // --- AES (WFO) ---
   const dsMatch = text.match(/Export of DataSource '([^']+)'/i);
   const looksLikeAesExport = /# export of datasource/i.test(head) || /datasource group/i.test(text);
 
@@ -357,18 +540,15 @@ function detectKindDetailed(filename, text){
     else if(/aes4/i.test(dsMatch[1])) candidates.push({kind:'aes4', confidence:'high', reason:`encabezado interno dice "Export of DataSource '${dsMatch[1]}'"`});
     else if(looksLikeAesExport) candidates.push({kind:'aes_unknown', confidence:'low', reason:`es un export de Verint ("${dsMatch[1]}") pero no dice AES3 ni AES4`});
   } else if(looksLikeAesExport){
-    // tiene pinta de export AES pero no se pudo leer el nombre del datasource; usar nombre de archivo como apoyo débil
     if(/aes3/i.test(nameLower)) candidates.push({kind:'aes3', confidence:'low', reason:'tiene formato de export AES pero el nombre interno no es legible; se infiere por el nombre del archivo ("aes3")'});
     else if(/aes4/i.test(nameLower)) candidates.push({kind:'aes4', confidence:'low', reason:'tiene formato de export AES pero el nombre interno no es legible; se infiere por el nombre del archivo ("aes4")'});
     else candidates.push({kind:'aes_unknown', confidence:'low', reason:'tiene formato de export AES (Datasource Group) pero no se pudo determinar si es AES3 o AES4'});
   }
 
-  // --- CM Hunt: header empieza con Number,Name,Extension ---
   if(/^Number\s*[,\t]\s*Name\s*[,\t]\s*Extension/i.test(firstLineNoQuotes)){
     candidates.push({kind:'hunt', confidence:'high', reason:'el encabezado empieza con Number, Name, Extension'});
   }
 
-  // --- CM VDN: header empieza con Name,Extension (sin Number antes) ---
   if(/^Name\s*[,\t]\s*Extension/i.test(firstLineNoQuotes)){
     candidates.push({kind:'vdn', confidence:'high', reason:'el encabezado empieza con Name, Extension (sin Number)'});
   } else if(/VDN Ovrd/i.test(head) || /Orig Annc/i.test(head)){
@@ -376,22 +556,17 @@ function detectKindDetailed(filename, text){
   }
 
   if(candidates.length === 0){
-    // último recurso: nombre de archivo, siempre de baja confianza
     if(/vdn/i.test(nameLower)) candidates.push({kind:'vdn', confidence:'low', reason:'no se reconoció el contenido; se infiere solo por el nombre del archivo ("vdn")'});
     else if(/hunt/i.test(nameLower)) candidates.push({kind:'hunt', confidence:'low', reason:'no se reconoció el contenido; se infiere solo por el nombre del archivo ("hunt")'});
     else if(/aes3/i.test(nameLower)) candidates.push({kind:'aes3', confidence:'low', reason:'no se reconoció el contenido; se infiere solo por el nombre del archivo ("aes3")'});
     else if(/aes4/i.test(nameLower)) candidates.push({kind:'aes4', confidence:'low', reason:'no se reconoció el contenido; se infiere solo por el nombre del archivo ("aes4")'});
   }
 
-  if(candidates.length === 0){
-    return { kind:null, confidence:null, reason:'no coincide con ningún patrón conocido (ni AES, ni VDN, ni Hunt)', allCandidates:[] };
-  }
-  // Si hay más de un candidato distinto, es ambiguo -> reportar todos
+  if(candidates.length === 0) return { kind:null, confidence:null, reason:'no coincide con ningún patrón conocido', allCandidates:[] };
+  
   const uniqueKinds = [...new Set(candidates.map(c=>c.kind))];
-  if(uniqueKinds.length > 1){
-    return { kind:null, confidence:'ambiguous', reason:'el archivo calza con más de un patrón', allCandidates:candidates };
-  }
-  // un solo tipo de candidato; usar la mejor confianza encontrada
+  if(uniqueKinds.length > 1) return { kind:null, confidence:'ambiguous', reason:'el archivo calza con más de un patrón', allCandidates:candidates };
+  
   const best = candidates.find(c=>c.confidence==='high') || candidates[0];
   return { kind: best.kind, confidence: best.confidence, reason: best.reason, allCandidates: candidates };
 }
@@ -455,7 +630,6 @@ function parseCmHunt(text){
   return { rows: out, headers, idxNumber, idxName, idxExt };
 }
 
-// --- UI: slots ---
 const slotGrid = document.getElementById('slotGrid');
 const fileInput = document.getElementById('fileInput');
 const dropzone = document.getElementById('dropzone');
@@ -506,9 +680,9 @@ async function ingestFiles(fileList){
 
       if(det.kind === null){
         if(det.confidence === 'ambiguous'){
-          log(`✗ "${file.name}" es ambiguo: ${det.reason} (${det.allCandidates.map(c=>c.kind).join(' / ')}). No se asignó a ninguna casilla — corrígelo o renómbralo y vuelve a intentar.`, 'err');
+          log(`✗ "${file.name}" es ambiguo: ${det.reason}. No asignado.`, 'err');
         } else {
-          log(`✗ "${file.name}": ${det.reason}. No se asignó a ninguna casilla.`, 'err');
+          log(`✗ "${file.name}": ${det.reason}. No asignado.`, 'err');
         }
         continue;
       }
@@ -517,23 +691,20 @@ async function ingestFiles(fileList){
       let countLabel = '';
       if(kind === 'aes3' || kind === 'aes4'){
         const rows = parseWfoExport(text);
-        countLabel = `${rows.length} registros Datasource Group`;
+        countLabel = `${rows.length} registros`;
       } else if(kind === 'vdn'){
         const { rows } = parseCmVdn(text);
         countLabel = `${rows.length} VDNs (CM)`;
       } else if(kind === 'hunt'){
         const { rows } = parseCmHunt(text);
-        countLabel = `${rows.length} Hunt Groups (CM)`;
-      } else {
-        log(`⚠ "${file.name}" parece un export AES pero no se pudo confirmar si es AES3 o AES4. No se asignó — revísalo manualmente.`, 'warn');
-        continue;
+        countLabel = `${rows.length} Hunt Groups`;
       }
 
       state[kind] = { filename: file.name, text, countLabel, confidence: det.confidence, reason: det.reason };
       if(det.confidence === 'low'){
-        log(`⚠ "${file.name}" identificado como ${kind.toUpperCase()} con BAJA confianza (${det.reason}) — ${countLabel}`, 'warn');
+        log(`⚠ "${file.name}" -> ${kind.toUpperCase()} con BAJA confianza (${det.reason})`, 'warn');
       } else {
-        log(`✓ "${file.name}" identificado como ${kind.toUpperCase()} — ${countLabel}`, 'ok');
+        log(`✓ "${file.name}" -> ${kind.toUpperCase()}`, 'ok');
       }
       updateSlotUI(kind);
     } catch(err){
@@ -566,11 +737,10 @@ slotGrid.querySelectorAll('.clear').forEach(btn=>{
     refreshRunState();
     pendingForceRun = false;
     hideReview();
-    log(`Se quitó el archivo de la casilla ${key.toUpperCase()}.`, 'warn');
+    log(`Se quitó el archivo ${key.toUpperCase()}.`, 'warn');
   });
 });
 
-// --- Panel de revisión ---
 const reviewPanel = document.getElementById('reviewPanel');
 const reviewBody = document.getElementById('reviewBody');
 const reviewActions = document.getElementById('reviewActions');
@@ -603,65 +773,50 @@ function showReview({ blocking, title, items, onConfirm }){
     btnOk.addEventListener('click', ()=>{ hideReview(); onConfirm(); });
     const btnCancel = document.createElement('button');
     btnCancel.className = 'btn-ghost';
-    btnCancel.textContent = 'Cancelar, voy a revisar los archivos';
+    btnCancel.textContent = 'Cancelar';
     btnCancel.addEventListener('click', hideReview);
     reviewActions.appendChild(btnOk);
     reviewActions.appendChild(btnCancel);
   } else if(blocking){
     const btnCancel = document.createElement('button');
     btnCancel.className = 'btn-ghost';
-    btnCancel.textContent = 'Entendido, voy a corregir los archivos';
+    btnCancel.textContent = 'Entendido, corregiré los archivos';
     btnCancel.addEventListener('click', hideReview);
     reviewActions.appendChild(btnCancel);
   }
 }
 
-// --- Validaciones previas al cruce ---
 function pct(a, b){
   if(b === 0) return a === 0 ? 0 : 100;
   return Math.abs(a-b) / b * 100;
 }
 
 function runPreflightChecks(){
-  const issues = [];       // bloqueantes: estructura rota, sin datos, confianza baja
-  const warnings = [];     // no bloqueantes: variación >10% vs referencia
+  const issues = [];       
+  const warnings = [];     
 
-  // 1. Confianza baja en algún archivo
   for(const key of ['aes3','aes4','vdn','hunt']){
     const d = state[key];
     if(d.confidence === 'low'){
       issues.push({
-        what: `Identifiqué "${d.filename}" como ${key.toUpperCase()}, pero no estoy segura.`,
-        detail: `Motivo: ${d.reason}. Esto puede significar que el formato del export cambió. Revisa que el archivo sea correcto antes de continuar — si confirmas que sí lo es, puedo seguir.`
+        what: `Identificación dudosa para "${d.filename}" (${key.toUpperCase()}).`,
+        detail: `Motivo: ${d.reason}.`
       });
     }
   }
 
-  // 2. Archivos sin registros (estructura rota / vacío)
   const aes3rows = parseWfoExport(state.aes3.text);
   const aes4rows = parseWfoExport(state.aes4.text);
   const vdnParsed = parseCmVdn(state.vdn.text);
   const huntParsed = parseCmHunt(state.hunt.text);
 
-  if(aes3rows.length === 0) issues.push({ what:'AES3 no tiene registros "Datasource Group" reconocibles.', detail:`Archivo: <code>${state.aes3.filename}</code>. Puede que el formato del export haya cambiado o el archivo esté incompleto.` });
-  if(aes4rows.length === 0) issues.push({ what:'AES4 no tiene registros "Datasource Group" reconocibles.', detail:`Archivo: <code>${state.aes4.filename}</code>. Puede que el formato del export haya cambiado o el archivo esté incompleto.` });
-  if(vdnParsed.rows.length === 0) issues.push({ what:'export_VDN no tiene filas con Name/Extension reconocibles.', detail:`Archivo: <code>${state.vdn.filename}</code>. Columnas detectadas: <code>${vdnParsed.headers.join(', ')}</code>.` });
-  if(huntParsed.rows.length === 0) issues.push({ what:'export_hunt no tiene filas con Number/Name/Extension reconocibles.', detail:`Archivo: <code>${state.hunt.filename}</code>. Columnas detectadas: <code>${huntParsed.headers.join(', ')}</code>.` });
+  if(aes3rows.length === 0) issues.push({ what:'AES3 sin registros.', detail:`${state.aes3.filename}` });
+  if(aes4rows.length === 0) issues.push({ what:'AES4 sin registros.', detail:`${state.aes4.filename}` });
+  if(vdnParsed.rows.length === 0) issues.push({ what:'VDN sin filas válidas.', detail:`${state.vdn.filename}` });
+  if(huntParsed.rows.length === 0) issues.push({ what:'Hunt sin filas válidas.', detail:`${state.hunt.filename}` });
 
-  // 3. Columnas clave no encontradas (idx === -1) aunque haya filas
-  if(vdnParsed.rows.length > 0 && (vdnParsed.idxName === -1 || vdnParsed.idxExt === -1)){
-    issues.push({ what:'export_VDN: no encontré columna "Name" o "Extension" exacta.', detail:`Columnas detectadas: <code>${vdnParsed.headers.join(', ')}</code>. Revisa si el encabezado cambió de nombre.` });
-  }
-  if(huntParsed.rows.length > 0 && (huntParsed.idxNumber === -1 || huntParsed.idxName === -1 || huntParsed.idxExt === -1)){
-    issues.push({ what:'export_hunt: no encontré columna "Number", "Name" o "Extension" exacta.', detail:`Columnas detectadas: <code>${huntParsed.headers.join(', ')}</code>. Revisa si el encabezado cambió de nombre.` });
-  }
+  if(issues.length > 0) return { blocking: true, items: issues };
 
-  // Si hay issues bloqueantes, no seguimos a warnings de referencia (no aplica comparar si la base ya está rota)
-  if(issues.length > 0){
-    return { blocking: true, items: issues };
-  }
-
-  // 4. Comparación opcional contra referencia (variación > 10%)
   const refCmVdn = parseFloat(document.getElementById('refCmVdn').value);
   const refCmHunt = parseFloat(document.getElementById('refCmHunt').value);
   const refWfoVdn = parseFloat(document.getElementById('refWfoVdn').value);
@@ -678,24 +833,20 @@ function runPreflightChecks(){
   ];
 
   for(const c of checks){
-    if(isNaN(c.ref)) continue; // no se ingresó referencia, se omite
+    if(isNaN(c.ref)) continue; 
     const diff = pct(c.actual, c.ref);
     if(diff > 10){
       warnings.push({
-        what: `${c.label}: cambió ${diff.toFixed(0)}% respecto a tu referencia.`,
-        detail: `Referencia anterior: <code>${c.ref}</code> &nbsp;→&nbsp; Hoy: <code>${c.actual}</code>. Si esperabas un cambio grande (ej. limpieza masiva, nuevo cliente) puedes continuar. Si no, vale la pena revisar el archivo de origen.`
+        what: `${c.label}: varió ${diff.toFixed(0)}% vs referencia.`,
+        detail: `Ref: ${c.ref} → Hoy: ${c.actual}.`
       });
     }
   }
 
-  if(warnings.length > 0){
-    return { blocking: false, items: warnings };
-  }
-
-  return null; // todo en orden, no hay nada que mostrar
+  if(warnings.length > 0) return { blocking: false, items: warnings };
+  return null;
 }
 
-// --- Cruce principal ---
 let lastResult = null;
 
 function buildCross(){
@@ -734,7 +885,12 @@ function renderResults(result){
   const faltVdn = vdnRows.filter(r=>!r.found);
   const faltHunt = huntRows.filter(r=>!r.found);
 
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const timeStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
+
   document.getElementById('results').classList.add('show');
+  document.getElementById('resultTitle').innerHTML = `Resultado del cruce <span style="font-size: 14px; font-weight: 500; color: var(--ink-dim); margin-left: 8px; font-family: var(--mono);">(${dateStr} ${timeStr})</span>`;
   document.getElementById('resultMeta').textContent =
     `CM: ${vdnRows.length} VDN / ${huntRows.length} Hunt — WFO: ${result.wfoVdnCount} VDN / ${result.wfoHuntCount} Hunt`;
 
@@ -794,26 +950,178 @@ document.getElementById('runBtn').addEventListener('click', ()=>{
     return;
   }
   if(check.blocking){
-    showReview({
-      blocking: true,
-      title: 'No puedo continuar sin tu confirmación',
-      items: check.items
-    });
-    log('⛔ Se detuvo el proceso: hay archivos con estructura no reconocida o identificación incierta. Revisa el panel de arriba.', 'err');
+    showReview({ blocking: true, title: 'Confirmación requerida', items: check.items });
   } else {
-    showReview({
-      blocking: false,
-      title: 'Encontré diferencias frente a tu referencia',
-      items: check.items,
-      onConfirm: executeRun
-    });
-    log('⚠ Hay variaciones >10% respecto a la referencia ingresada. Esperando tu confirmación.', 'warn');
+    showReview({ blocking: false, title: 'Diferencias vs Referencia', items: check.items, onConfirm: executeRun });
   }
 });
 
-// --- Generación de XLSX ---
+// --- Botón Copiar Faltantes al Portapapeles (Formato Tabla HTML para Correo) ---
+document.getElementById('copyFaltantesBtn').addEventListener('click', ()=>{
+  if(!lastResult) return;
+  const faltVdn = lastResult.vdnRows.filter(r=>!r.found);
+  const faltHunt = lastResult.huntRows.filter(r=>!r.found);
+
+  if(faltVdn.length === 0 && faltHunt.length === 0){
+    log('ⓘ No hay extensiones faltantes para copiar.', 'ok');
+    return;
+  }
+
+  // Generar tablas HTML con los encabezados e igual estructura (Name, Extension, FORMULA) como en Excel
+  let htmlParts = ['<div style="font-family: Arial, sans-serif; font-size: 13px; color: #1F2937;">'];
+  let textLines = [];
+
+  if(faltVdn.length > 0){
+    htmlParts.push('<p style="font-size: 14px; font-weight: bold; color: #DA291C; margin: 12px 0 6px;">VDN FALTANTES EN WFO</p>');
+    htmlParts.push('<table border="1" style="border-collapse: collapse; width: 100%; max-width: 600px; border: 1px solid #CBD5E1; margin-bottom: 16px;">');
+    htmlParts.push('<thead><tr style="background-color: #DA291C; color: #FFFFFF; text-align: left;">');
+    htmlParts.push('<th style="padding: 8px 12px; border: 1px solid #B91C1C;">Name</th>');
+    htmlParts.push('<th style="padding: 8px 12px; border: 1px solid #B91C1C;">Extension</th>');
+    htmlParts.push('<th style="padding: 8px 12px; border: 1px solid #B91C1C;">FORMULA</th>');
+    htmlParts.push('</tr></thead><tbody>');
+
+    textLines.push("VDN FALTANTES EN WFO");
+    textLines.push("Name\tExtension\tFORMULA");
+
+    faltVdn.forEach(r => {
+      htmlParts.push(`<tr><td style="padding: 6px 12px; border: 1px solid #E2E8F0;">${escapeHtml(r.name)}</td><td style="padding: 6px 12px; border: 1px solid #E2E8F0;">${escapeHtml(r.extClean)}</td><td style="padding: 6px 12px; border: 1px solid #E2E8F0; color: #DA291C; font-weight: bold;">#N/A</td></tr>`);
+      textLines.push(`${r.name}\t${r.extClean}\t#N/A`);
+    });
+    htmlParts.push('</tbody></table>');
+  }
+
+  if(faltHunt.length > 0){
+    if(faltVdn.length > 0) textLines.push("");
+    htmlParts.push('<p style="font-size: 14px; font-weight: bold; color: #DA291C; margin: 12px 0 6px;">HUNT GROUPS FALTANTES EN WFO</p>');
+    htmlParts.push('<table border="1" style="border-collapse: collapse; width: 100%; max-width: 600px; border: 1px solid #CBD5E1; margin-bottom: 16px;">');
+    htmlParts.push('<thead><tr style="background-color: #DA291C; color: #FFFFFF; text-align: left;">');
+    htmlParts.push('<th style="padding: 8px 12px; border: 1px solid #B91C1C;">Number</th>');
+    htmlParts.push('<th style="padding: 8px 12px; border: 1px solid #B91C1C;">Name</th>');
+    htmlParts.push('<th style="padding: 8px 12px; border: 1px solid #B91C1C;">Extension</th>');
+    htmlParts.push('<th style="padding: 8px 12px; border: 1px solid #B91C1C;">FORMULA</th>');
+    htmlParts.push('</tr></thead><tbody>');
+
+    textLines.push("HUNT GROUPS FALTANTES EN WFO");
+    textLines.push("Number\tName\tExtension\tFORMULA");
+
+    faltHunt.forEach(r => {
+      htmlParts.push(`<tr><td style="padding: 6px 12px; border: 1px solid #E2E8F0;">${escapeHtml(r.number)}</td><td style="padding: 6px 12px; border: 1px solid #E2E8F0;">${escapeHtml(r.name)}</td><td style="padding: 6px 12px; border: 1px solid #E2E8F0;">${escapeHtml(r.extension)}</td><td style="padding: 6px 12px; border: 1px solid #E2E8F0; color: #DA291C; font-weight: bold;">#N/A</td></tr>`);
+      textLines.push(`${r.number}\t${r.name}\t${r.extension}\t#N/A`);
+    });
+    htmlParts.push('</tbody></table>');
+  }
+
+  htmlParts.push('</div>');
+
+  const htmlContent = htmlParts.join("");
+  const plainTextContent = textLines.join("\n");
+
+  const showSuccessUI = () => {
+    const btn = document.getElementById('copyFaltantesBtn');
+    const originalText = btn.textContent;
+    btn.textContent = '¡Tablas copiadas al portapapeles! ✓';
+    btn.style.borderColor = 'var(--signal)';
+    btn.style.color = 'var(--signal-dim)';
+    setTimeout(()=>{
+      btn.textContent = originalText;
+      btn.style.borderColor = '';
+      btn.style.color = '';
+    }, 2500);
+    log('✓ Tablas de faltantes copiadas con formato para correo (Outlook / Gmail).', 'ok');
+  };
+
+  if (navigator.clipboard && window.ClipboardItem) {
+    const blobHtml = new Blob([htmlContent], { type: 'text/html' });
+    const blobText = new Blob([plainTextContent], { type: 'text/plain' });
+    navigator.clipboard.write([
+      new ClipboardItem({
+        'text/html': blobHtml,
+        'text/plain': blobText
+      })
+    ]).then(showSuccessUI).catch(err => {
+      navigator.clipboard.writeText(plainTextContent).then(showSuccessUI);
+    });
+  } else {
+    navigator.clipboard.writeText(plainTextContent).then(showSuccessUI);
+  }
+});
+
+// --- ESTILOS EN EXCEL (Filtros, Bordes, Separadores Limpios) ---
+function applyExcelStyles(ws, autofilterColEnd) {
+  if (!ws['!ref']) return;
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  
+  // 1. Identificar columnas de datos vs separadores leyendo la fila 0 (encabezados)
+  const isSeparatorCol = [];
+  const colWidths = [];
+  
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    const headerCell = ws[XLSX.utils.encode_cell({ r: 0, c: c })];
+    const headerVal = headerCell && headerCell.v !== undefined ? String(headerCell.v).trim() : '';
+    
+    if (headerVal === '') {
+      isSeparatorCol[c] = true;
+      colWidths.push({ wch: 4 }); // Ancho angosto para columnas de separación
+    } else {
+      isSeparatorCol[c] = false;
+      colWidths.push({ wch: 20 }); // Ancho adecuado para columnas de datos
+    }
+  }
+  ws['!cols'] = colWidths;
+
+  // 2. Configurar el Auto Filtro únicamente en el bloque principal si aplica
+  if (autofilterColEnd !== undefined) {
+    ws['!autofilter'] = { 
+      ref: XLSX.utils.encode_range({
+        s: { r: 0, c: 0 },
+        e: { r: range.e.r, c: autofilterColEnd }
+      })
+    };
+  } else {
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+  }
+
+  const borderStyle = { style: 'thin', color: { rgb: "000000" } };
+
+  // 3. Aplicar bordes y estilos a celdas dentro de bloques de datos
+  for (let r = range.s.r; r <= range.e.r; r++) {
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      // Ignorar completamente las columnas separadoras (D, E en VDN / E, F en Hunt)
+      if (isSeparatorCol[c]) {
+        const cellRef = XLSX.utils.encode_cell({ r, c });
+        if (ws[cellRef]) {
+          delete ws[cellRef].s; // Eliminar estilos para dejar la columna limpia
+        }
+        continue;
+      }
+
+      const cellRef = XLSX.utils.encode_cell({ r, c });
+      if (!ws[cellRef]) {
+        ws[cellRef] = { t: 's', v: '' }; // Crear celda vacía para completar grilla del bloque
+      }
+      
+      if (!ws[cellRef].s) ws[cellRef].s = {};
+
+      // Borde para celdas de bloques de datos
+      ws[cellRef].s.border = {
+        top: borderStyle, bottom: borderStyle,
+        left: borderStyle, right: borderStyle
+      };
+
+      // Estilo del encabezado (Fila 0) de columnas de datos
+      if (r === 0) {
+        ws[cellRef].s.font = { bold: true, color: { rgb: "FFFFFF" } };
+        ws[cellRef].s.fill = { patternType: "solid", fgColor: { rgb: "DA291C" } };
+      }
+    }
+  }
+}
+
 function buildFullWorkbook(result){
   const wb = XLSX.utils.book_new();
+  const dateStr = getFormattedDate();
+
+  // VDN: Bloque 1 (Cols 0..2) | Separador (Cols 3..4) | Bloque 2 (Cols 5..8)
   const vdnAoa = [['Name','Extension','FORMULA','','','EXT','DESCRIPCION','TIPO','AES']];
   result.vdnRows.forEach(r=>{
     vdnAoa.push([
@@ -821,8 +1129,11 @@ function buildFullWorkbook(result){
       r.wfo ? Number(r.extClean) : '', r.wfo ? r.wfo.desc : '', r.wfo ? r.wfo.tipo : '', r.wfo ? r.wfo.aes : ''
     ]);
   });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(vdnAoa), 'vdn cruce');
+  const wsVdn = XLSX.utils.aoa_to_sheet(vdnAoa);
+  applyExcelStyles(wsVdn, 2); // Filtro solo en bloque izquierdo (Name, Extension, FORMULA)
+  XLSX.utils.book_append_sheet(wb, wsVdn, `vdn cm1 ${dateStr}`);
 
+  // Hunt: Bloque 1 (Cols 0..3) | Separador (Cols 4..5) | Bloque 2 (Cols 6..9)
   const huntAoa = [['Number','Name','Extension','FORMULA','','','EXT','DESCRIPCION','TIPO','AES']];
   result.huntRows.forEach(r=>{
     huntAoa.push([
@@ -830,32 +1141,43 @@ function buildFullWorkbook(result){
       r.wfo ? Number(r.extClean) : '', r.wfo ? r.wfo.desc : '', r.wfo ? r.wfo.tipo : '', r.wfo ? r.wfo.aes : ''
     ]);
   });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(huntAoa), 'hunt cruce');
+  const wsHunt = XLSX.utils.aoa_to_sheet(huntAoa);
+  applyExcelStyles(wsHunt, 3); // Filtro solo en bloque izquierdo (Number, Name, Extension, FORMULA)
+  XLSX.utils.book_append_sheet(wb, wsHunt, `hunts cm1 ${dateStr}`);
+
   return wb;
 }
 
 function buildFaltantesWorkbook(result){
   const wb = XLSX.utils.book_new();
+  const dateStr = getFormattedDate();
   const faltVdn = result.vdnRows.filter(r=>!r.found);
   const faltHunt = result.huntRows.filter(r=>!r.found);
 
   const vdnAoa = [['Name','Extension (CM)','Extension VDN']];
   faltVdn.forEach(r=> vdnAoa.push([r.name, r.extension, r.extClean]));
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(vdnAoa), 'VDN faltan en WFO');
+  const wsVdn = XLSX.utils.aoa_to_sheet(vdnAoa);
+  applyExcelStyles(wsVdn);
+  XLSX.utils.book_append_sheet(wb, wsVdn, `VDN Faltantes ${dateStr}`);
 
   const huntAoa = [['Number / Skill','Name','Extension (CM)']];
   faltHunt.forEach(r=> huntAoa.push([r.number, r.name, r.extension]));
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(huntAoa), 'Hunt faltan en WFO');
+  const wsHunt = XLSX.utils.aoa_to_sheet(huntAoa);
+  applyExcelStyles(wsHunt);
+  XLSX.utils.book_append_sheet(wb, wsHunt, `Hunt Faltantes ${dateStr}`);
+  
   return wb;
 }
 
 document.getElementById('downloadBtn').addEventListener('click', ()=>{
   if(!lastResult) return;
-  XLSX.writeFile(buildFullWorkbook(lastResult), 'cruce_WFO_vs_CM1.xlsx');
+  const dateStr = getFormattedDate();
+  XLSX.writeFile(buildFullWorkbook(lastResult), `cruce WFO vs CM1 ${dateStr}.xlsx`);
 });
 document.getElementById('downloadFaltantesBtn').addEventListener('click', ()=>{
   if(!lastResult) return;
-  XLSX.writeFile(buildFaltantesWorkbook(lastResult), 'faltantes_dar_de_alta_WFO.xlsx');
+  const dateStr = getFormattedDate();
+  XLSX.writeFile(buildFaltantesWorkbook(lastResult), `faltantes_dar_de_alta_WFO_${dateStr}.xlsx`);
 });
 </script>
 </body>
